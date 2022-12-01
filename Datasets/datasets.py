@@ -18,7 +18,8 @@ class PTBDataset(Dataset):
   def __init__(
       self,
       csv = '/content/drive/MyDrive/Pranay - ECG/ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.2/ptbxl_database_repeat_paired.csv',
-      root_dir = '/content/drive/MyDrive/Pranay - ECG/ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.2'):
+      root_dir = '/content/drive/MyDrive/Pranay - ECG/ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.2',
+      mode = 'append'):
     df = pd.read_csv(csv)
     df['recording_date_y'] = pd.to_datetime(df['recording_date_y']).astype(int)/ 10**9
     df['recording_date_x'] = pd.to_datetime(df['recording_date_x']).astype(int)/ 10**9
@@ -26,6 +27,7 @@ class PTBDataset(Dataset):
     df['recording_date_y'] = (df['recording_date_y']-df['recording_date_y'].min())/(df['recording_date_y'].max()-df['recording_date_y'].min())
     self.data = df
     self.root_dir = root_dir
+    self.mode = mode
     
     index = np.where(self.data.strat_fold_x.isin([0,1,2,3,4,5,6,7,8]))
     self.train = self.data.iloc[index]
@@ -48,10 +50,17 @@ class PTBDataset(Dataset):
     label_2 = self.data["ST-DEPR-MI_y"].iloc[idx]
     # sample = sample[np.newaxis,:,:]
     # sample = signal.resample(sample,2500,axis=1)
-    sample_1 = np.swapaxes(sample_1,0,1)
-    sample_2 = np.swapaxes(sample_2,0,1)
-    time = self.data["recording_date_y"].iloc[idx] - self.data["recording_date_x"].iloc[idx]
-    return np.squeeze(sample_1),np.squeeze(sample_2),label_1,label_2,time
+    if self.mode == 'append':
+      sample_1 = np.swapaxes(sample_1,0,1)
+      sample_2 = np.swapaxes(sample_2,0,1)
+      time = self.data["recording_date_y"].iloc[idx] - self.data["recording_date_x"].iloc[idx]
+      return np.squeeze(sample_1),np.squeeze(sample_2),label_1,label_2,time
+    elif self.mode == 'grad':
+      sample_1 = np.swapaxes(sample_1,0,1)
+      sample_2 = np.swapaxes(sample_2,0,1)
+      time = self.data["recording_date_y"].iloc[idx] - self.data["recording_date_x"].iloc[idx]
+      sample_1 = (sample_2-sample_1)/time
+      return np.squeeze(sample_1),np.squeeze(sample_2),label_1,label_2,time
 
   def set_fold(self,fold):
     if fold == "Train":
